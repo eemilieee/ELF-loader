@@ -1,0 +1,56 @@
+Tema 1 - loader de executabile
+Arpasanu Emilia-Oana, 321 CA
+
+Scopul loader-ului de executabile realizat este de a incarca in memorie un
+executabil pagina cu pagina, conform procedeului de demand paging.
+
+Procesul incepe cu parsarea fisirului executabil si completarea structurilor
+segmentelor si cel al executabilului, cele care ofera informatii relevante
+despre ce contin si cum apar in memorie (procese definite de "exec_parser.c").
+Apoi, se executa prima instructiune continuta de executabil (entry point-ul).
+
+In fisierul "loader.c" se realizeaza executia executabilului si rezolvarea
+erorilor de tip page fault din timpul incarcarii sale in memorie.
+Acest lucru este posibil prin rularea unui handler dedicat problemelor de
+memorie (segmentation fault) in timpul executiei lui. Handler-ul trimite
+semnale kernelului in functie de cazurile tratate in implementare in urma
+identificarii adreselor de memorie ce declanseaza erori:
+
+    - daca adresa de memorie analizata nu este specifica unei erori de tipul
+    segmentation fault, se ruleaza handler-ul default;
+
+    - se incearca identificarea segmentului de memorie din cadrul
+    executabilului care contine adresa de memorie cu probleme indicate:
+
+        * daca adresa este in afara oricarui segment cunoscut de memorie, se
+        ruleaza handler-ul default;
+
+        * daca adresa face parte dintr-o pagina deja mapata in memorie
+        (i se atribuise inainte un frame in memoria fizica), se ruleaza
+        handler-ul default (accesul la memorie este invalid);
+
+        * daca adresa nu face parte dintr-o pagina mapata in memorie, inseamna
+        ca adresa virtuala este valida si trebuie realizata legatura dintre
+        pagina care o contine si un frame din memoria fizica, pentru ca mai
+        apoi sa se poata copia datele din executabil la aceasta adresa:
+
+            + se identifica pagina ce contine adresa indicata;
+
+            + se determina dimensiunea datelor din executabil care pot fi
+            citite (fie o pagina, exact cat urmeaza sa se mapeze, fie mai
+            putin, cand adresa se afla in interiorul ultimei pagini din
+            segment);
+
+            + are loc maparea efectiva a paginii ce contine adresa cu probleme
+            si se semnaleaza ca pagina a fost mapata (cu ajutorul unui vector
+            caracteristic existent in structura segmentului, alocat dinamic);
+
+            + se pleaseaza cursorul in interiorul executabilului in dreptul
+            paginii mapate si se citesc datele la adresa indicata;
+
+            + se modifica protectia de acces asupra memoriei nou mapate,
+            oferindu-se paginii permisiunile specifice segmentului din care
+            aceasta face parte.
+
+Interceptarea si tratarea semnalului de tip segmentation fault sunt efectuate
+cu ajutorul apelului signal(), din familia sigaction.
